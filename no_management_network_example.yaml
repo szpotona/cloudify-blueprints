@@ -1,0 +1,59 @@
+tosca_definitions_version: cloudify_dsl_1_3
+
+imports:
+  - http://www.getcloudify.org/spec/cloudify/3.4/types.yaml
+  - http://www.getcloudify.org/spec/fabric-plugin/1.4/plugin.yaml
+  - https://raw.githubusercontent.com/szpotona/cloudify-openstack-plugin/no-management-network/plugin.yaml 
+
+node_templates:
+  test_server:
+    type: cloudify.openstack.nodes.Server
+    properties:
+      use_management_network: false
+      resource_id: testserver
+      image: 74ff4015-aee1-4e02-aaa8-1c77b2650394
+      flavor: 196235bc-7ca5-4085-ac81-7e0242bda3f9
+      management_network_name: testnetwork
+    relationships:
+      - type: cloudify.relationships.depends_on
+        target: subnet
+      - type: cloudify.openstack.server_connected_to_floating_ip
+        target: floatingip
+
+  network:
+    type: cloudify.openstack.nodes.Network
+    properties:
+      resource_id: testnetwork         
+
+  floatingip:
+    type: cloudify.openstack.nodes.FloatingIP
+    properties:
+      use_external_resource: false
+
+  subnet:
+    type: cloudify.openstack.nodes.Subnet
+    properties:
+      resource_id: testsubnet
+      subnet:
+        ip_version: 4
+        cidr: 20.0.0.0/24
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          inputs:
+            args:
+              dns_nameservers: [8.8.8.8]
+              allocation_pools:
+                - start: 20.0.0.2
+                  end: 20.0.0.250
+    relationships:
+      - target: network
+        type: cloudify.relationships.contained_in
+      - target: router
+        type: cloudify.openstack.subnet_connected_to_router
+
+  router:
+    type: cloudify.openstack.nodes.Router
+    properties:
+      resource_id: cloudify-management-router
+      use_external_resource: true
