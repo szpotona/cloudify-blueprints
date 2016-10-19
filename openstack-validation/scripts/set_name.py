@@ -9,7 +9,7 @@ ctx.logger.info("Opened database successfully")
 node_type = ctx.node.id.split('_')[0]
 
 conn.isolation_level = None
-
+assigned_name = ''
 try:
     c = conn.cursor()
     c.execute('SELECT * FROM IDS WHERE NODE_TYPE=?', (node_type,))
@@ -27,3 +27,11 @@ except conn.Error as e:
     c.execute("rollback")
 finally:
     conn.close()
+
+userdata = '''
+#!/bin/bash
+touch /home/centos/userdata_finished'''
+
+if assigned_name:
+    with open('/tmp/{}'.format(assigned_name), 'w') as f:
+        f.write(userdata)

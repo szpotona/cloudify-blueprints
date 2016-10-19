@@ -1,0 +1,173 @@
+node_types:
+  name_setter:
+    derived_from: cloudify.nodes.Root
+    properties:
+      database_name:
+        default: { get_input: name_setting_db }
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: scripts/create_name_setter.py
+          executor: central_deployment_agent
+          inputs:
+            database_name:
+              default: { get_property: [SELF, database_name] }
+        start:
+          implementation: scripts/start_http_server.sh
+          executor: central_deployment_agent
+
+  cluster:
+    derived_from: cloudify.nodes.Root
+    properties:
+      domain:
+        default: { concat: [ '.', 'some_name', '.', { get_input: domain }] }
+      db_name:
+        default: { get_input: name_setting_db }
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: scripts/set_name.py
+          executor: central_deployment_agent
+
+  x_volume:
+    derived_from: cloudify.openstack.nodes.Volume
+    properties:
+      db_name:
+        default: { get_input: name_setting_db }
+      domain:
+        default: { concat: [ '.', 'some_name', '.', { get_input: domain }] }
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+            implementation: scripts/set_name.py
+            executor: central_deployment_agent
+            inputs:
+              database_name:
+                default: { get_input: name_setting_db }
+        configure:
+          implementation: openstack.cinder_plugin.volume.create
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: {}
+        delete:
+          implementation: openstack.cinder_plugin.volume.delete
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: {}
+
+  centos_compute:
+    derived_from: cloudify.openstack.nodes.Server
+    properties:
+      domain:
+        default: { get_input: domain }
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create: {}
+        configure:
+          implementation: openstack.nova_plugin.server.create
+          inputs:
+            args:
+              default: { get_attribute: [SELF, server]}
+            openstack_config:
+              default: {}
+        start:
+          implementation: openstack.nova_plugin.server.start
+          inputs:
+            start_retry_interval:
+              description: Polling interval until the server is active in seconds
+              type: integer
+              default: 30
+            private_key_path:
+              description: >
+                Path to private key which matches the server's
+                public key. Will be used to decrypt password in case
+                the "use_password" property is set to "true"
+              type: string
+              default: ''
+            openstack_config:
+              default: {}
+        stop:
+          implementation: openstack.nova_plugin.server.stop
+          inputs:
+            openstack_config:
+              default: {}
+        delete:
+          implementation: openstack.nova_plugin.server.delete
+          inputs:
+            openstack_config:
+              default: {}
+      cloudify.interfaces.validation:
+        creation:
+          implementation: openstack.nova_plugin.server.creation_validation
+          inputs:
+            args:
+              default: {}
+            openstack_config:
+              default: {}
+
+
+  centos_compute_with_monitoring:
+    derived_from: centos_compute
+    interfaces:
+      cloudify.interfaces.monitoring_agent:
+        install:
+          implementation: diamond.diamond_agent.tasks.install
+          inputs:
+            diamond_config:
+              default:
+                interval: 60
+        start: diamond.diamond_agent.tasks.start
+        stop: diamond.diamond_agent.tasks.stop
+        uninstall: diamond.diamond_agent.tasks.uninstall
+
+      cloudify.interfaces.monitoring:
+        start:
+          implementation: diamond.diamond_agent.tasks.add_collectors
+          inputs:
+            collectors_config:
+              default:
+                CPUCollector: {}
+                MemoryCollector: {}
+                LoadAverageCollector: {}
+                DiskUsageCollector:
+                  config:
+                    devices: x?vd[a-z]+[0-9]*$
+                NetworkCollector: {}
+relationships:
+  generate_userdata:
+    derived_from: cloudify.relationships.depends_on
+    source_interfaces:
+        cloudify.interfaces.relationship_lifecycle:
+          preconfigure:
+            implementation: scripts/generate_userdata.sh
+            executor: central_deployment_agent
+
+  copy_volume:
+    derived_from: cloudify.relationships.contained_in
+    source_interfaces:
+      cloudify.interfaces.relationship_lifecycle:
+        preconfigure:
+          implementation: scripts/os_boot_from_volume.py
+          executor: central_deployment_agent
+
+  boot_from_volume:
+    derived_from: cloudify.relationships.contained_in
+    source_interfaces:
+      cloudify.interfaces.relationship_lifecycle:
+        preconfigure:
+          implementation: scripts/os_get_volume_id.py
+          executor: central_deployment_agent
+
+  port_connected_to_floating_ip:
+    derived_from: cloudify.relationships.contained_in
+    source_interfaces:
+      cloudify.interfaces.relationship_lifecycle:
+        preconfigure:
+          implementation: scripts/os_boot_from_volume.py
+          executor: central_deployment_agent
+        establish: openstack.neutron_plugin.floatingip.connect_port
+        unlink: openstack.neutron_plugin.floatingip.disconnect_port
