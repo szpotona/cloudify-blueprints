@@ -20,6 +20,10 @@ inputs:
     default: external
   name_setting_db:
     default: names
+  file_server_ip:
+    default: 0.0.0.0
+  file_server_port:
+    default: 8000
 
 node_templates:
 

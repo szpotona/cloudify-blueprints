@@ -1,0 +1,61 @@
+tosca_definitions_version: cloudify_dsl_1_2
+
+imports:
+    - http://www.getcloudify.org/spec/cloudify/3.3.1/types.yaml
+    - http://www.getcloudify.org/spec/diamond-plugin/1.3.3/plugin.yaml
+    - https://raw.githubusercontent.com/funkyHat/cloudify-gcp-plugin/with-funkyhat-url/plugin.yaml
+    - custom-gcp-types.yaml
+
+inputs:
+  gcp_config:
+    default: {}
+  test_image:
+    default: projects/centos-cloud/global/images/centos-7-v20160921
+  test_boot_volume_size:
+    default: 10
+  test_instance_type:
+    default: n1-standard-1
+  test_zone:
+    default: europe-west1-d
+  file_server_ip:
+    default: 0.0.0.0
+  file_server_port:
+    default: 8000
+  domain:
+    default: testdomain
+  name_setting_db:
+    default: name_setting_db
+  user:
+    default: cloud-user
+  deployment_manager_keypath:
+    default: /root/.ssh/agent_key.pem 
+
+
+node_templates:
+
+    name_setter:
+      type: name_setter
+
+    test:
+        type: cloudify.nodes.Root
+        instances:
+            deploy: 1
+
+    test_boot_volume:
+        type: x_volume
+        properties:
+            image: { get_input: test_image}
+            size: { get_input: test_boot_volume_size }
+        relationships:
+            - type: get_name_from_container
+              target: test
+
+
+    test_compute:
+        type: centos_compute_with_monitoring
+        properties:
+            instance_type: { get_input: test_instance_type }
+            zone: { get_input: test_zone }
+        relationships:
+            -   type: get_name_from_volume
+                target: test_boot_volume

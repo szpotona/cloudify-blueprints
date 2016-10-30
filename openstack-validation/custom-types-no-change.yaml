@@ -15,6 +15,8 @@ node_types:
         start:
           implementation: scripts/start_http_server.sh
           executor: central_deployment_agent
+          inputs:
+            port: { get_input: file_server_port }
 
   cluster:
     derived_from: cloudify.nodes.Root
@@ -26,7 +28,7 @@ node_types:
     interfaces:
       cloudify.interfaces.lifecycle:
         create:
-          implementation: scripts/set_name.py
+          implementation: scripts/set_name_no_change.py
           executor: central_deployment_agent
 
   x_volume:
@@ -138,14 +140,6 @@ node_types:
                     devices: x?vd[a-z]+[0-9]*$
                 NetworkCollector: {}
 relationships:
-  generate_userdata:
-    derived_from: cloudify.relationships.depends_on
-    source_interfaces:
-        cloudify.interfaces.relationship_lifecycle:
-          preconfigure:
-            implementation: scripts/generate_userdata.sh
-            executor: central_deployment_agent
-
   copy_volume:
     derived_from: cloudify.relationships.contained_in
     source_interfaces:
@@ -153,6 +147,9 @@ relationships:
         preconfigure:
           implementation: scripts/os_boot_from_volume.py
           executor: central_deployment_agent
+          inputs:
+            file_server_ip: { get_input: file_server_ip }
+            file_server_port: { get_input: file_server_port }
 
   boot_from_volume:
     derived_from: cloudify.relationships.contained_in
@@ -169,5 +166,8 @@ relationships:
         preconfigure:
           implementation: scripts/os_boot_from_volume.py
           executor: central_deployment_agent
+          inputs:
+            manager_ip: { get_input: file_server_ip }
+            file_server_port: { get_input: file_server_port }
         establish: openstack.neutron_plugin.floatingip.connect_port
         unlink: openstack.neutron_plugin.floatingip.disconnect_port

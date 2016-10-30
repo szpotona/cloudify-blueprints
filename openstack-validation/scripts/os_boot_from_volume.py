@@ -1,4 +1,5 @@
 from cloudify import ctx
+from cloudify.state import ctx_parameters as inputs
 
 BOOT_VOLUME = 'boot_volume'
 
@@ -14,6 +15,8 @@ server = ctx.source.instance.runtime_properties.get('server', {})
 server.update(
     {'name': ctx.target.instance.runtime_properties['fqdn'],
      'block_device_mapping': {'vda': '{}:::0'.format(volume_id)},
-     'userdata': {'type': 'http', 'url': 'http://185.98.150.200:8000/{0}'.format(name)}})
+     'userdata': {'type': 'http', 'url': 'http://{0}:{1}/{2}'.format(inputs['file_server_ip'],
+                                                                     inputs['file_server_port'],
+                                                                     name)}})
 ctx.source.instance.runtime_properties['server'] = server
 ctx.logger.info('Runtime properties: {}'.format(str(ctx.source.instance.runtime_properties)))

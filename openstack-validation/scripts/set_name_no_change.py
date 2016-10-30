@@ -27,3 +27,11 @@ except conn.Error as e:
     c.execute("rollback")
 finally:
     conn.close()
+
+userdata = '''
+#!/bin/bash
+touch /home/centos/userdata_finished'''
+
+if assigned_name:
+    with open('/tmp/{}'.format(assigned_name), 'w') as f:
+        f.write(userdata)

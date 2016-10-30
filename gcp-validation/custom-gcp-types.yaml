@@ -1,0 +1,165 @@
+node_types:
+    name_setter:
+        derived_from: cloudify.nodes.Root
+        properties:
+          database_name:
+            default: { get_input: name_setting_db }
+        interfaces:
+          cloudify.interfaces.lifecycle:
+            create:
+              implementation: scripts/create_name_setter.py
+              executor: central_deployment_agent
+              inputs:
+                database_name:
+                  default: { get_property: [SELF, database_name] }
+            delete:
+              implementation: scripts/delete_name_setter.sh
+              executor: central_deployment_agent
+              inputs:
+                database_name:
+                  default: { get_property: [SELF, database_name] }
+
+
+    centos_compute:
+        derived_from: cloudify.gcp.nodes.Instance
+        properties:
+            gcp_config:
+                default: { get_input: gcp_config }
+            cloudify_agent:
+                default:
+                    user: { get_input: user }
+                    distro: centos
+                    release: Final
+                    key: { get_input: deployment_manager_keypath }
+        interfaces:
+            cloudify.interfaces.lifecycle:
+                create: {}
+                configure:
+                    implementation: gcp_plugin.cloudify_gcp.compute.instance.create
+                    inputs:
+                        name:
+                            default: { get_attribute: [SELF, name] }
+                        startup_script:
+                            default:
+                                type: string
+                                script: { get_attribute: [SELF, script] }
+                        external_ip:
+                            default: false
+                        instance_type:
+                            default: { get_property: [SELF, instance_type]}
+                        image_id:
+                            default: { get_property: [SELF, image_id]}
+                        zone:
+                            default: { get_property: [SELF, zone]}
+                        scopes:
+                            default: { get_property: [SELF, scopes]}
+                        tags:
+                            default: { get_property: [SELF, tags]}
+                        can_ip_forward:
+                            default: false
+                        additional_settings:
+                            default: {}
+                start:
+                    implementation: gcp_plugin.cloudify_gcp.compute.instance.start
+                    inputs:
+                        name:
+                            default: { get_attribute: [SELF, name] }
+            cloudify.interfaces.cloudify_agent:
+                create:
+                    implementation: agent.cloudify_agent.installer.operations.create
+                    executor: central_deployment_agent
+                configure:
+                    implementation: agent.cloudify_agent.installer.operations.configure
+                    executor: central_deployment_agent
+                start:
+                    implementation: agent.cloudify_agent.installer.operations.start
+                    executor: central_deployment_agent
+                stop: {}
+                delete:
+                    implementation: agent.cloudify_agent.installer.operations.delete
+                    executor: central_deployment_agent
+                restart:
+                    implementation: agent.cloudify_agent.installer.operations.restart
+                    executor: central_deployment_agent
+                install_plugins:
+                    implementation: agent.cloudify_agent.operations.install_plugins
+                    executor: host_agent
+
+
+    centos_compute_with_monitoring:
+        derived_from: centos_compute
+        properties:
+            cloudify_agent:
+                default:
+                    user: { get_input: user }
+                    distro: centos
+                    release: Final
+                    key: { get_input: deployment_manager_keypath }
+        interfaces:
+            cloudify.interfaces.monitoring_agent:
+                install:
+                    implementation: diamond.diamond_agent.tasks.install
+                    inputs:
+                        diamond_config:
+                            default:
+                                interval: 60
+                start: diamond.diamond_agent.tasks.start
+                stop: diamond.diamond_agent.tasks.stop
+                uninstall: diamond.diamond_agent.tasks.uninstall
+
+            cloudify.interfaces.monitoring:
+                start:
+                    implementation: diamond.diamond_agent.tasks.add_collectors
+                    inputs:
+                        collectors_config:
+                            default:
+                                CPUCollector: {}
+                                MemoryCollector: {}
+                                LoadAverageCollector: {}
+                                DiskUsageCollector:
+                                    config:
+                                        devices: x?vd[a-z]+[0-9]*$
+                                NetworkCollector: {}
+
+    x_volume:
+        derived_from: cloudify.gcp.nodes.Volume
+        properties:
+            db_name:
+                default: { get_input: name_setting_db }
+            domain:
+                default: { get_input: domain }
+            gcp_config:
+                default: { get_input: gcp_config }
+        interfaces:
+            cloudify.interfaces.lifecycle:
+                create:
+                    implementation: scripts/set_name.py
+                    executor: central_deployment_agent
+                configure:
+                    implementation: gcp_plugin.cloudify_gcp.compute.disk.create
+                    inputs:
+                        image:
+                            default: { get_property: [SELF, image] }
+                        name:
+                            default: { get_attribute: [SELF, name] }
+                        size:
+                            default: { get_property: [SELF, size] }
+                        additional_settings:
+                            default: {}
+
+relationships:
+  get_name_from_volume:
+    derived_from: cloudify.relationships.contained_in
+    source_interfaces:
+      cloudify.interfaces.relationship_lifecycle:
+        preconfigure:
+          implementation: scripts/get_name_and_boot_from_volume.py
+          executor: central_deployment_agent
+
+  get_name_from_container:
+    derived_from: cloudify.relationships.contained_in
+    source_interfaces:
+      cloudify.interfaces.relationship_lifecycle:
+        preconfigure:
+          implementation: scripts/get_name.py
+          executor: central_deployment_agent
