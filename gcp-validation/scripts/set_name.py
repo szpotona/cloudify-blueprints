@@ -30,7 +30,7 @@ finally:
 
 userdata = '''
 #!/bin/bash
-touch /home/centos/userdata_finished'''
+touch /home/cloud-user/userdata_finished'''
 
 if assigned_name:
     with open('/tmp/{}'.format(assigned_name), 'w') as f:

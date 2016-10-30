@@ -3,7 +3,7 @@ tosca_definitions_version: cloudify_dsl_1_2
 imports:
     - http://www.getcloudify.org/spec/cloudify/3.3.1/types.yaml
     - http://www.getcloudify.org/spec/diamond-plugin/1.3.3/plugin.yaml
-    - https://raw.githubusercontent.com/funkyHat/cloudify-gcp-plugin/with-funkyhat-url/plugin.yaml
+    - https://raw.githubusercontent.com/cloudify-cosmo/cloudify-gcp-plugin/2.0.0-devel/plugin.yaml
     - custom-gcp-types.yaml
 
 inputs:
