@@ -1,0 +1,83 @@
+tosca_definitions_version: cloudify_dsl_1_3
+
+imports:
+  - types.yaml
+
+
+data_types:
+
+  test_optional:
+    properties:
+      one:
+        type: string
+        default: 'test one'
+        required: True
+      two:
+        type: string
+        required: False
+      three:
+        type: string
+
+node_types:
+
+  test_type:
+    derived_from: cloudify.nodes.Root
+    properties:
+      some_property:
+        type: test_optional
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: script/script.py
+          executor: central_deployment_agent
+        configure:
+          implementation: script/configure.py
+          executor: central_deployment_agent
+        start:
+          implementation: script/start.py
+          executor: central_deployment_agent
+        stop:
+          implementation: script/stop.py
+          executor: central_deployment_agent
+        delete:
+          implementation: script/delete.py
+          executor: central_deployment_agent
+
+
+node_templates:
+
+  Test:
+    type: test_type
+    properties:
+      some_property:
+        three: 'AAAAAA'
+
+  Test2:
+    type: test_type
+    properties:
+      some_property:
+        three: 'BBBB'
+        one: 'second test 1'
+    relationships:
+      - type: cloudify.relationships.connected_to
+        target: Test
+        source_interfaces:
+          cloudify.interfaces.relationship_lifecycle:
+            preconfigure:
+              implementation: script/preconfigure.py
+              executor: central_deployment_agent
+            unlink:
+              implementation: script/unlink.py
+              executor: central_deployment_agent
+        target_interfaces:
+          cloudify.interfaces.relationship_lifecycle:
+            preconfigure:
+              implementation: script/preconfigure.py
+              executor: central_deployment_agent
+            establish:
+              implementation: script/establish.py
+              executor: central_deployment_agent
+            unlink:
+              implementation: script/unlink.py
+              executor: central_deployment_agent
+
