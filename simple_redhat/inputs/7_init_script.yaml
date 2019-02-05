@@ -1,0 +1,9 @@
+install_method: init_script
+flavor: 3
+image: { get_secret: redhat7_image }
+openstack_config:
+  username: { get_secret: keystone_username }
+  password: { get_secret: keystone_password }
+  auth_url: { get_secret: keystone_url }
+  region: { get_secret: keystone_region }
+  tenant_name: { get_secret: keystone_tenant_name }

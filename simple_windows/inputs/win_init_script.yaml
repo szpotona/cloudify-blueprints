@@ -1,0 +1,10 @@
+install_method: init_script
+agent_key_private: { get_secret: agent_key_file }
+flavor: { get_secret: medium_flavor}
+image: { get_secret: windows_image }
+openstack_config:
+  username: { get_secret: keystone_username }
+  password: { get_secret: keystone_password }
+  auth_url: { get_secret: keystone_url }
+  region: { get_secret: keystone_region }
+  tenant_name: { get_secret: keystone_tenant_name }

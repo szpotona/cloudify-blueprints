@@ -1,0 +1,7 @@
+tosca_definitions_version: cloudify_dsl_1_3
+
+imports:
+  - test1--test.yaml
+  - test2--test.yaml
+
+

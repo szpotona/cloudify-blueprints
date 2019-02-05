@@ -1,0 +1,44 @@
+tosca_definitions_version: cloudify_dsl_1_3
+
+imports:
+  - http://www.getcloudify.org/spec/cloudify/4.5.5.dev1/types.yaml
+  - plugin:cloudify-openstack-plugin
+
+inputs:
+  openstack_config: {}
+  image: {}
+  install_method: {}
+  flavor: {}
+  agent_key_name:
+    default: agent
+  agent_key_private:
+    default: { get_secret: agent_private_key }
+  management_network:
+    default: { get_secret: management_network }
+
+dsl_definitions:
+
+  client_config: &client_config
+    username: { get_input: [openstack_config, username] }
+    password: { get_input: [openstack_config, password] }
+    tenant_name: { get_input: [openstack_config, tenant_name] }
+    auth_url: { get_input: [openstack_config, auth_url] }
+    region: { get_input: [openstack_config, region] }
+    insecure: true
+
+node_templates:
+  
+  redhat_server:
+    type: cloudify.openstack.nodes.Server
+    properties:
+      openstack_config: *client_config
+      agent_config:
+        install_method: { get_input: install_method }
+        user: cloud-user
+        key: { get_input: agent_key_private }
+      server:
+        key_name: { get_input: agent_key_name }
+        image: { get_input: image }
+        flavor: { get_input: flavor }
+      management_network_name: { get_input: management_network }
+
